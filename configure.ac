@@ -37,6 +37,17 @@ dnl **************************************************************************
 AX_CHECK_ENABLE_DEBUG([yes])
 
 dnl **************************************************************************
+dnl Enable or disable max-notifications-99
+dnl **************************************************************************
+
+AC_ARG_ENABLE([max_notifications_99],
+              AS_HELP_STRING([--enable-max-notifications-99],
+                             [Enable welcome route example]))
+AS_IF([test x"$enable_max_notifications_99" = x"yes"],
+      [AC_DEFINE([MAX_NOTIFICATIONS_99], [1],
+      [Define to any value to enable 99 as maximum number of notifications])])
+
+dnl **************************************************************************
 dnl Add warning flags
 dnl **************************************************************************
 

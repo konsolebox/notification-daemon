@@ -36,7 +36,11 @@
 #define INFO_VERSION PACKAGE_VERSION
 #define INFO_SPEC_VERSION "1.2"
 
-#define MAX_NOTIFICATIONS 20
+#ifdef MAX_NOTIFICATIONS_99
+  #define MAX_NOTIFICATIONS 99
+#else
+  #define MAX_NOTIFICATIONS 20
+#endif
 
 struct _NdDaemon
 {
