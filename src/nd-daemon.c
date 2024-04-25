@@ -191,7 +191,7 @@ handle_notify_cb (NdFdNotifications     *object,
 
   daemon = ND_DAEMON (user_data);
 
-  if (nd_queue_length (daemon->queue) > MAX_NOTIFICATIONS)
+  if (nd_queue_length (daemon->queue) >= MAX_NOTIFICATIONS)
     {
       error_name = "org.freedesktop.Notifications.MaxNotificationsExceeded";
       error_message = _("Exceeded maximum number of notifications");
