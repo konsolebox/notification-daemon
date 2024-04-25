@@ -170,6 +170,19 @@ handle_get_server_information_cb (NdFdNotifications     *object,
   return TRUE;
 }
 
+static void
+return_max_notifications_exceeded_error (GDBusMethodInvocation *invocation)
+{
+  const gchar *error_name;
+  const gchar *error_message;
+
+  error_name = "org.freedesktop.Notifications.MaxNotificationsExceeded";
+  error_message = _("Exceeded maximum number of notifications");
+
+  g_dbus_method_invocation_return_dbus_error (invocation, error_name,
+      error_message);
+}
+
 static gboolean
 handle_notify_cb (NdFdNotifications     *object,
                   GDBusMethodInvocation *invocation,
@@ -184,23 +197,25 @@ handle_notify_cb (NdFdNotifications     *object,
                   gpointer               user_data)
 {
   NdDaemon *daemon;
-  const gchar *error_name;
-  const gchar *error_message;
   NdNotification *notification;
   gint new_id;
 
+#ifdef AUTO_REMOVE_OLD_NOTIFICATIONS
+  guint open_count, last_open_count;
+  NdQueueResult result;
+  const gchar *error_name;
+  const gchar *error_message;
+#endif
+
   daemon = ND_DAEMON (user_data);
 
+#ifndef AUTO_REMOVE_OLD_NOTIFICATIONS
   if (nd_queue_length (daemon->queue) >= MAX_NOTIFICATIONS)
     {
-      error_name = "org.freedesktop.Notifications.MaxNotificationsExceeded";
-      error_message = _("Exceeded maximum number of notifications");
-
-      g_dbus_method_invocation_return_dbus_error (invocation, error_name,
-                                                  error_message);
-
+      return_max_notifications_exceeded_error (invocation);
       return TRUE;
     }
+#endif
 
   if (replaces_id > 0)
     {
@@ -211,6 +226,34 @@ handle_notify_cb (NdFdNotifications     *object,
       else
         g_object_ref (notification);
     }
+
+#ifdef AUTO_REMOVE_OLD_NOTIFICATIONS
+  if (replaces_id == 0)
+    {
+      last_open_count = 0;
+
+      while (open_count = nd_queue_count_open_notifications (daemon->queue),
+             open_count != last_open_count && open_count >= MAX_NOTIFICATIONS)
+        {
+          result = nd_queue_close_oldest_open_notification (daemon->queue);
+
+          if (result == ND_QUEUE_CRITICAL_ERROR)
+            {
+              error_name = "org.freedesktop.Notifications.CriticalErrorOccurred";
+              error_message = _("Critical error occurred");
+              g_dbus_method_invocation_return_dbus_error (invocation, error_name, error_message);
+              return TRUE;
+            }
+          else if (result == ND_QUEUE_NONE_CLOSED)
+            {
+              return_max_notifications_exceeded_error (invocation);
+              return TRUE;
+            }
+
+          last_open_count = open_count;
+        }
+    }
+#endif
 
   if (replaces_id == 0)
     {

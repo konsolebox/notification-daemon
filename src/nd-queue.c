@@ -1021,3 +1021,111 @@ nd_queue_new (void)
 
         return ND_QUEUE (queue_object);
 }
+
+guint
+nd_queue_count_open_notifications (NdQueue *queue)
+{
+        guint count;
+        GList *notifications, *list;
+        NdNotification *notification;
+
+        count = 0;
+        g_return_val_if_fail (queue->priv->queue != NULL, 0);
+        g_return_val_if_fail (queue->priv->notifications != NULL, 0);
+        notifications = g_hash_table_get_values (queue->priv->notifications);
+
+        for (list = notifications; list != NULL; list = list->next) {
+                notification = ND_NOTIFICATION (list->data);
+
+                if (! nd_notification_get_is_closed (notification))
+                        ++count;
+        }
+
+        return count;
+}
+
+NdQueueResult
+nd_queue_close_oldest_open_notification (NdQueue *queue)
+{
+        NdStack *stack;
+        GList *bubbles, *notifications, *list;
+        NdBubble *bubble, *oldeest_open_bubble;
+        NdNotification *notification, *oldeest_open_notification;
+        gpointer id;
+
+        g_return_val_if_fail (ND_IS_QUEUE (queue), ND_QUEUE_CRITICAL_ERROR);
+        stack = get_stack_with_pointer (queue);
+        g_return_val_if_fail (ND_IS_STACK (stack), ND_QUEUE_CRITICAL_ERROR);
+
+        notifications = g_hash_table_get_values (queue->priv->notifications);
+
+        for (list = notifications; list != NULL; list = list->next) {
+                notification = ND_NOTIFICATION (list->data);
+                g_return_val_if_fail (ND_IS_NOTIFICATION (notification), ND_QUEUE_CRITICAL_ERROR);
+
+                /* Bubbles are observed to only be bound to notifications
+                 * with no queued attribute.
+                 *
+                 * The transient attribute doesn't matter here and the resident
+                 * attribute does not seem to be used anywhere. */
+
+                if (! nd_notification_get_is_closed (notification) &&
+                                ! nd_notification_get_is_queued (notification)) {
+                        nd_notification_close (notification, ND_NOTIFICATION_CLOSED_API);
+                        g_list_free (notifications);
+                        return ND_QUEUE_SUCCESS;
+                }
+        }
+
+        g_list_free (notifications);
+        bubbles = nd_stack_get_bubbles (stack);
+
+        if (g_list_length (bubbles) > 0) {
+                oldeest_open_bubble = NULL;
+                oldeest_open_notification = NULL;
+
+                for (list = bubbles; list != NULL; list = list->next) {
+                        bubble = ND_BUBBLE (list->data);
+                        g_return_val_if_fail (ND_IS_BUBBLE (bubble), ND_QUEUE_CRITICAL_ERROR);
+                        notification = nd_bubble_get_notification (bubble);
+                        g_return_val_if_fail (ND_IS_NOTIFICATION (notification),
+                                              ND_QUEUE_CRITICAL_ERROR);
+
+                        if (! nd_notification_get_is_closed (notification)) {
+                                oldeest_open_bubble = bubble;
+                                oldeest_open_notification = notification;
+                        }
+                }
+
+                if (oldeest_open_bubble != NULL) {
+                        nd_notification_close (oldeest_open_notification,
+                                               ND_NOTIFICATION_CLOSED_API);
+                        gtk_widget_destroy (GTK_WIDGET (oldeest_open_bubble));
+                        return ND_QUEUE_SUCCESS;
+                }
+        }
+
+        if (g_queue_get_length (queue->priv->queue) > 0) {
+                oldeest_open_notification = NULL;
+
+                for (list = queue->priv->queue->head; list != NULL; list = list->next) {
+                        id = list->data;
+                        notification = g_hash_table_lookup (queue->priv->notifications, id);
+
+                        g_return_val_if_fail (ND_IS_NOTIFICATION (notification),
+                                              ND_QUEUE_CRITICAL_ERROR);
+
+                        if (! nd_notification_get_is_closed (notification))
+                                oldeest_open_notification = notification;
+                }
+
+                if (oldeest_open_notification != NULL) {
+                        nd_notification_close (oldeest_open_notification,
+                                               ND_NOTIFICATION_CLOSED_API);
+
+                        return ND_QUEUE_SUCCESS;
+                }
+        }
+
+        return ND_QUEUE_NONE_CLOSED;
+}

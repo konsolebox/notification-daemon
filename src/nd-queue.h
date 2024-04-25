@@ -49,6 +49,14 @@ typedef struct
         void          (* changed) (NdQueue      *queue);
 } NdQueueClass;
 
+typedef enum
+{
+        ND_QUEUE_SUCCESS,
+        ND_QUEUE_NONE_CLOSED,
+        ND_QUEUE_CRITICAL_ERROR
+} NdQueueResult;
+
+
 GType               nd_queue_get_type                       (void);
 
 NdQueue *           nd_queue_new                            (void);
@@ -62,6 +70,9 @@ void                nd_queue_add                            (NdQueue        *que
                                                              NdNotification *notification);
 void                nd_queue_remove_for_id                  (NdQueue        *queue,
                                                              guint           id);
+
+guint               nd_queue_count_open_notifications       (NdQueue        *queue);
+NdQueueResult       nd_queue_close_oldest_open_notification (NdQueue        *queue);
 
 G_END_DECLS
 

@@ -37,6 +37,17 @@ dnl **************************************************************************
 AX_CHECK_ENABLE_DEBUG([yes])
 
 dnl **************************************************************************
+dnl Enable or disable auto-remove-old-notifications
+dnl **************************************************************************
+
+AC_ARG_ENABLE([auto_remove_old_notifications],
+              AS_HELP_STRING([--enable-auto-remove-old-notifications],
+                             [Enable welcome route example]))
+AS_IF([test x"$enable_auto_remove_old_notifications" = x"yes"],
+      [AC_DEFINE([AUTO_REMOVE_OLD_NOTIFICATIONS], [1],
+      [Define to any value to enable automatic removal of old notifications])])
+
+dnl **************************************************************************
 dnl Enable or disable max-notifications-99
 dnl **************************************************************************
 
